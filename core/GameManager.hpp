@@ -8,6 +8,7 @@
 #include "SFMLFormatters.hpp"
 #include <thread>
 #include <atomic>
+#include <chrono>
 
 #include "GameObject.hpp"
 #include "GameWorld.hpp"
@@ -21,13 +22,14 @@ class GameManager
         void run();
         void update(float localDeltaTime);
         void threadUpdate();
+        void cullingThread();
         void render();
         void handleEvents();
         void handleInput(sf::Event event);
         void handlePhysics(float localDeltaTime);
         void handleLogic(float localDeltaTime);
         // void handleNetwork(float localDeltaTime);
-        void handleDebug(float localDeltaTime);
+        // void handleDebug(float localDeltaTime);
         void handleCleanup();
 
         void init();
@@ -52,7 +54,8 @@ class GameManager
         std::atomic<bool> paused;
         std::atomic<bool> pausedByFocus;
 
-        std::thread gameThread;
+        std::thread instanceGameThread;
+        std::thread instanceCullingThread;
         std::atomic<bool> useThread;
 
         GameWorld* gameWorld;

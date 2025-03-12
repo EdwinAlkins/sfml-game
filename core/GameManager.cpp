@@ -10,8 +10,15 @@ GameManager::GameManager()
     debug = true;
     pausedByFocus = false;
     this->gameWorld = new GameWorld();
-    this->gameWorld->addGameObject(new GameObject(this->gameWorld->getWorldId(), sf::Vector2f(400, 300)));
-    this->gameWorld->addGameObject(new GameObject(this->gameWorld->getWorldId(), sf::Vector2f(600, 400)));
+
+    int height = 1080;
+    int width = 1920;
+    int nbObjects = 20000;
+    for (int i = 0; i < nbObjects; i++)
+    {
+        sf::Shape* newShape = new sf::RectangleShape(sf::Vector2f(5.0f, 5.0f));
+        this->gameWorld->addGameObject(new GameObject(this->gameWorld->getWorldId(), sf::Vector2f(rand() % width, rand() % height), *newShape));
+    }
 }
 
 GameManager::~GameManager()
@@ -26,15 +33,36 @@ void GameManager::run()
     init();
     while (running)
     {
+        auto startRun = std::chrono::high_resolution_clock::now();
         deltaTime = clock.restart();
+        auto start = std::chrono::high_resolution_clock::now();
         handleEvents();
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        spdlog::debug("GameManager run: handleEvents time {} ms", duration.count() / 1000.0f);
         if (!useThread && !paused && !pausedByFocus)
         {
+            auto start = std::chrono::high_resolution_clock::now();
             update(deltaTime.asSeconds());
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+            spdlog::debug("GameManager run: update time {} ms", duration.count() / 1000.0f);
+            start = std::chrono::high_resolution_clock::now();
+            gameWorld->culling(&window.getView());
+            end = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+            spdlog::debug("GameManager run: culling time {} ms", duration.count() / 1000.0f);
         }
+        start = std::chrono::high_resolution_clock::now();
         render();
+        end = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        spdlog::debug("GameManager run: render time {} ms", duration.count() / 1000.0f);
         // display the frame rate
         spdlog::debug("GameManager run: frame rate {}", 1.0f / deltaTime.asSeconds());
+        auto endRun = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(endRun - startRun);
+        spdlog::debug("GameManager run: total time {} ms", duration.count() / 1000.0f);
     }
     cleanup();
 }
@@ -45,7 +73,7 @@ void GameManager::update(float localDeltaTime)
     handleLogic(localDeltaTime);
     handlePhysics(localDeltaTime);
     // handleNetwork(localDeltaTime);
-    handleDebug(localDeltaTime);
+    // handleDebug(localDeltaTime);
 }
 
 
@@ -72,7 +100,11 @@ void GameManager::threadUpdate()
         {
             if (!paused && !pausedByFocus)
             {
+                auto start = std::chrono::high_resolution_clock::now();
                 update(fixedTimeStep);
+                auto end = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+                spdlog::debug("GameManager threadUpdate: update time {} ms", duration.count() / 1000.0f);
             }
             accumulator -= fixedTimeStep;
         }
@@ -81,6 +113,8 @@ void GameManager::threadUpdate()
         auto endTime = std::chrono::high_resolution_clock::now();
         auto processingTime = std::chrono::duration<float>(endTime - currentTime).count();
         auto sleepTime = std::max(0.0f, fixedTimeStep - processingTime);
+
+        spdlog::debug("GameManager threadUpdate: sleepTime {} ms", sleepTime * 1000.0f);
         
         if (sleepTime > 0)
         {
@@ -89,6 +123,18 @@ void GameManager::threadUpdate()
     }
 }
 
+void GameManager::cullingThread()
+{
+    while (running && useThread)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        gameWorld->culling(&window.getView());
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        spdlog::debug("GameManager cullingThread: culling time {} ms", duration.count() / 1000.0f);
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    }
+}
 
 void GameManager::render()
 {
@@ -158,13 +204,15 @@ void GameManager::handleInput(sf::Event event)
         spdlog::info("GameManager handleInput: useThread {}", static_cast<bool>(useThread));
         if (useThread)
         {
-            gameThread = std::thread(&GameManager::threadUpdate, this);
+            instanceGameThread = std::thread(&GameManager::threadUpdate, this);
+            instanceCullingThread = std::thread(&GameManager::cullingThread,this);
         }
         else
         {
-            if (gameThread.joinable())
+            if (instanceGameThread.joinable() && instanceCullingThread.joinable())
             {
-                gameThread.join();
+                instanceGameThread.join();
+                instanceCullingThread.join();
             }
         }
     }
@@ -202,10 +250,10 @@ void GameManager::handleLogic(float localDeltaTime)
 // }   
 
 
-void GameManager::handleDebug(float localDeltaTime)
-{
+// void GameManager::handleDebug(float localDeltaTime)
+// {
 
-}   
+// }   
 
 
 void GameManager::handleCleanup()
@@ -253,7 +301,8 @@ void GameManager::start()
     if (useThread)
     {
         spdlog::info("GameManager start: using thread");
-        gameThread = std::thread(&GameManager::threadUpdate, this);
+        instanceGameThread = std::thread(&GameManager::threadUpdate, this);
+        instanceCullingThread = std::thread(&GameManager::cullingThread,this);
     }
     run();
 }
@@ -262,9 +311,10 @@ void GameManager::cleanup()
 {
     spdlog::info("GameManager cleanup");
     running = false;
-    if (useThread && gameThread.joinable())
+    if (useThread && instanceGameThread.joinable() && instanceCullingThread.joinable())
     {
-        gameThread.join();
+        instanceGameThread.join();
+        instanceCullingThread.join();
     }
 }
 

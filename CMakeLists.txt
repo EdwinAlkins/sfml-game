@@ -43,6 +43,7 @@ include(add_fmt)
 include(add_box2d)
 include(add_json)
 include(add_tgui)
+include(add_eigen)
 
 # Add executable
 add_executable(${PROJECT_NAME} main.cpp)

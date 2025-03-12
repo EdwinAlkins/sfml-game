@@ -1,4 +1,3 @@
-
 #ifndef GAMEOBJECT_HPP
 #define GAMEOBJECT_HPP
 
@@ -10,17 +9,19 @@
 class GameObject
 {
     public:
-        GameObject(b2WorldId* worldId, sf::Vector2f position);
+        GameObject(b2WorldId* worldId, sf::Vector2f position, sf::Shape &shape);
         ~GameObject();
 
         void updateLogic(float localDeltaTime);
         // void updatePhysics(float localDeltaTime);
         void render(sf::RenderWindow& window);
 
+        sf::FloatRect getBounds() const;
+
     private:
         b2BodyId bodyId;
         b2BodyDef bodyDef;
         b2WorldId* worldId;
-        sf::RectangleShape shape;
+        sf::Shape& shape;
 };
 #endif // GAMEOBJECT_HPP
