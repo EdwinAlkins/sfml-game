@@ -5,7 +5,7 @@ A simple SFML application that displays a green circle on a black background.
 ## Prerequisites
 
 - CMake 3.14 or higher
-- C++17 compatible compiler
+- C++20 compatible compiler
 - Git (for FetchContent to download SFML)
 - Internet connection (for the first build to download SFML)
 

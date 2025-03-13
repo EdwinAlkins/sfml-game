@@ -8,9 +8,10 @@
 #include <atomic>
 #include <spdlog/spdlog.h>
 #include "GameObject.hpp"
+#include "Camera.hpp"
 
 
-bool isInView(const GameObject& obj, const sf::View& view);
+bool isInView(const GameObjectBase& obj, const sf::FloatRect& viewBounds);
 
 class GameWorld
 {
@@ -22,18 +23,18 @@ class GameWorld
         void updatePhysics(float localDeltaTime);
         void render(sf::RenderWindow& window);
 
-        void culling(const sf::View* camera);
+        void culling(Camera& camera);
 
-        void addGameObject(GameObject* gameObject);
-        std::vector<GameObject*> getGameObjects();
+        void addGameObject(GameObjectBase* gameObject);
+        std::vector<GameObjectBase*> getGameObjects();
 
         b2WorldId* getWorldId();
 
     private:
         b2WorldDef def;
         b2WorldId worldId;
-        std::vector<GameObject*> gameObjects;
-        std::vector<GameObject*> visibleGameObjectsA, visibleGameObjectsB;
+        std::vector<GameObjectBase*> gameObjects;
+        std::vector<GameObjectBase*> visibleGameObjectsA, visibleGameObjectsB;
 
         std::mutex cullingMutex;
         std::atomic<bool> hasNewData;

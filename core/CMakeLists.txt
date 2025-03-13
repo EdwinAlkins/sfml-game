@@ -6,6 +6,7 @@ add_library(core
   GameManager.cpp GameManager.hpp
   GameWorld.cpp GameWorld.hpp
   GameObject.cpp GameObject.hpp
+  Camera.cpp Camera.hpp
   )
 
-target_link_libraries(core PUBLIC tgui spdlog::spdlog box2d nlohmann_json::nlohmann_json sfml-graphics sfml-window sfml-system fmt)
+target_link_libraries(core PUBLIC tgui spdlog::spdlog box2d nlohmann_json::nlohmann_json sfml-graphics sfml-window sfml-system fmt eigen)

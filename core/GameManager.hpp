@@ -3,15 +3,17 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <SFML/Network.hpp>
 #include <SFML/System.hpp>
 #include <spdlog/spdlog.h>
-#include "SFMLFormatters.hpp"
 #include <thread>
 #include <atomic>
 #include <chrono>
 
+#include "SFMLFormatters.hpp"
 #include "GameObject.hpp"
 #include "GameWorld.hpp"
+#include "Camera.hpp"
 
 class GameManager
 {
@@ -53,12 +55,15 @@ class GameManager
         std::atomic<bool> debug;
         std::atomic<bool> paused;
         std::atomic<bool> pausedByFocus;
+        std::mutex pausedByFocusMutex;
+        
 
         std::thread instanceGameThread;
         std::thread instanceCullingThread;
         std::atomic<bool> useThread;
 
         GameWorld* gameWorld;
+        Camera* camera;
 
 };
 

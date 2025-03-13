@@ -10,14 +10,24 @@ GameManager::GameManager()
     debug = true;
     pausedByFocus = false;
     this->gameWorld = new GameWorld();
+    camera = new Camera();
 
     int height = 1080;
     int width = 1920;
-    int nbObjects = 20000;
-    for (int i = 0; i < nbObjects; i++)
+    int nbObjectsSimple = 50000;
+    for (int i = 0; i < nbObjectsSimple; i++)
+    {
+        sf::Shape* newShape = new sf::RectangleShape(sf::Vector2f(2.0f, 2.0f));
+        newShape->setFillColor(sf::Color::Blue);
+        // this->gameWorld->addGameObject(new GameObjectSimpleBody(this->gameWorld->getWorldId(), sf::Vector2f(rand() % width, rand() % height), *newShape));
+        this->gameWorld->addGameObject(new GameObjectSimple(this->gameWorld->getWorldId(), sf::Vector2f(rand() % (width * 2) - width/2, rand() % (height * 2) - height/2), *newShape));
+    }
+    int nbObjectsSimpleBody = 10000;
+    for (int i = 0; i < nbObjectsSimpleBody; i++)
     {
         sf::Shape* newShape = new sf::RectangleShape(sf::Vector2f(5.0f, 5.0f));
-        this->gameWorld->addGameObject(new GameObject(this->gameWorld->getWorldId(), sf::Vector2f(rand() % width, rand() % height), *newShape));
+        newShape->setFillColor(sf::Color::White);
+        this->gameWorld->addGameObject(new GameObjectSimpleBody(this->gameWorld->getWorldId(), sf::Vector2f(rand() % width, rand() % height), *newShape));
     }
 }
 
@@ -30,7 +40,6 @@ GameManager::~GameManager()
 void GameManager::run()
 {
     spdlog::info("GameManager run");
-    init();
     while (running)
     {
         auto startRun = std::chrono::high_resolution_clock::now();
@@ -48,7 +57,7 @@ void GameManager::run()
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             spdlog::debug("GameManager run: update time {} ms", duration.count() / 1000.0f);
             start = std::chrono::high_resolution_clock::now();
-            gameWorld->culling(&window.getView());
+            gameWorld->culling(*camera);
             end = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             spdlog::debug("GameManager run: culling time {} ms", duration.count() / 1000.0f);
@@ -63,8 +72,8 @@ void GameManager::run()
         auto endRun = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(endRun - startRun);
         spdlog::debug("GameManager run: total time {} ms", duration.count() / 1000.0f);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    cleanup();
 }
 
 
@@ -79,24 +88,27 @@ void GameManager::update(float localDeltaTime)
 
 void GameManager::threadUpdate()
 {
-    auto lastTime = std::chrono::high_resolution_clock::now();
     const float fixedTimeStep = 1.0f / 60.0f; // 60 ticks per second
     float accumulator = 0.0f;
+    auto lastFrameTime = std::chrono::high_resolution_clock::now();
     
     while (running && useThread)
     {
+        // Calculate actual elapsed time since last frame
         auto currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float> frameTime = currentTime - lastTime;
-        lastTime = currentTime;
+        float deltaSeconds = std::chrono::duration<float>(currentTime - lastFrameTime).count();
+        lastFrameTime = currentTime;
         
         // Cap the frame time to avoid spiral of death
-        const float maxFrameTime = 0.25f;
-        float deltaSeconds = std::min(frameTime.count(), maxFrameTime);
+        const float maxFrameTime = 0.25f; // Maximum 250ms per frame
+        deltaSeconds = std::min(deltaSeconds, maxFrameTime);
         
+        // Add to accumulator
         accumulator += deltaSeconds;
         
-        // Run fixed updates as needed
-        while (accumulator >= fixedTimeStep)
+        // Run as many fixed updates as needed to catch up
+        bool updatedThisFrame = false;
+        while (accumulator >= fixedTimeStep && running && useThread)
         {
             if (!paused && !pausedByFocus)
             {
@@ -104,22 +116,23 @@ void GameManager::threadUpdate()
                 update(fixedTimeStep);
                 auto end = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-                spdlog::debug("GameManager threadUpdate: update time {} ms", duration.count() / 1000.0f);
+                spdlog::debug("GameManager threadUpdate: update time {} ms pausedByFocus={}", duration.count() / 1000.0f, static_cast<bool>(pausedByFocus));
+                updatedThisFrame = true;
             }
             accumulator -= fixedTimeStep;
         }
         
-        // Calculate sleep time to maintain 60Hz if possible
-        auto endTime = std::chrono::high_resolution_clock::now();
-        auto processingTime = std::chrono::duration<float>(endTime - currentTime).count();
-        auto sleepTime = std::max(0.0f, fixedTimeStep - processingTime);
-
-        spdlog::debug("GameManager threadUpdate: sleepTime {} ms", sleepTime * 1000.0f);
-        
-        if (sleepTime > 0)
+        // If we didn't need to update this frame, sleep to save CPU
+        if (!updatedThisFrame)
         {
-            std::this_thread::sleep_for(std::chrono::duration<float>(sleepTime));
+            // Calculate time until next update is needed
+            float timeToNextUpdate = fixedTimeStep - accumulator;
+            if (timeToNextUpdate > 0.001f) // Only sleep if we have at least 1ms to wait
+            {
+                std::this_thread::sleep_for(std::chrono::duration<float>(timeToNextUpdate * 0.9f)); // Sleep for 90% of wait time to avoid oversleeping
+            }
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -127,11 +140,13 @@ void GameManager::cullingThread()
 {
     while (running && useThread)
     {
-        auto start = std::chrono::high_resolution_clock::now();
-        gameWorld->culling(&window.getView());
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        spdlog::debug("GameManager cullingThread: culling time {} ms", duration.count() / 1000.0f);
+        if(!pausedByFocus){
+            auto start = std::chrono::high_resolution_clock::now();
+            gameWorld->culling(*camera);
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+            spdlog::debug("GameManager cullingThread: culling time {} ms pausedByFocus={}", duration.count() / 1000.0f, static_cast<bool>(pausedByFocus));
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 }
@@ -185,17 +200,17 @@ void GameManager::handleInput(sf::Event event)
     // if not focused, pause the game
     if (event.type == sf::Event::LostFocus)
     {
-        spdlog::info("GameManager handleInput: lost focus");
+        pausedByFocus = true;
         window.setFramerateLimit(1);
         window.setVerticalSyncEnabled(false);
-        pausedByFocus = true;
+        spdlog::info("GameManager handleInput: lost focus {}", static_cast<bool>(pausedByFocus));
     }
     if (event.type == sf::Event::GainedFocus)   
     {
-        spdlog::info("GameManager handleInput: gained focus");
+        pausedByFocus = false;
         window.setFramerateLimit(60);
         window.setVerticalSyncEnabled(true);
-        pausedByFocus = false;
+        spdlog::info("GameManager handleInput: gained focus {}", static_cast<bool>(pausedByFocus));
     }
     
     if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::T)
@@ -229,18 +244,59 @@ void GameManager::handleInput(sf::Event event)
             spdlog::set_level(spdlog::level::info);
         }
     }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up){
+        this->camera->move(sf::Vector2f(0, -10));
+    }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down){
+        this->camera->move(sf::Vector2f(0, 10));
+    }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Left){
+        this->camera->move(sf::Vector2f(-10, 0));
+    }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right){
+        this->camera->move(sf::Vector2f(10, 0));
+    }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::A){
+        this->camera->setRotation(10);
+    }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::E){
+        this->camera->setRotation(-10);
+    }
+    if (event.type == sf::Event::MouseWheelScrolled)
+    {
+      if (event.mouseWheelScroll.delta > 0)
+      {
+        this->camera->setZoom(0.05f);
+      }
+      else if (event.mouseWheelScroll.delta < 0)
+      {
+        this->camera->setZoom(-0.05f);
+      }
+    }
+    if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::R){
+        this->camera->resetRotation();
+        this->camera->resetZoom();
+    }
 }   
 
 
 void GameManager::handlePhysics(float localDeltaTime)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     this->gameWorld->updatePhysics(localDeltaTime);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    spdlog::debug("GameManager handlePhysics: updatePhysics time {} ms", duration.count() / 1000.0f);
 }   
 
 
 void GameManager::handleLogic(float localDeltaTime)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     this->gameWorld->updateLogic(localDeltaTime);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    spdlog::debug("GameManager handleLogic: updateLogic time {} ms", duration.count() / 1000.0f);
 }   
 
 
@@ -291,12 +347,16 @@ void GameManager::init()
         spdlog::info("Anti-aliasing is not supported");
     }
 
+    camera->setWindow(&window);
+    camera->init();
+
     spdlog::info("GameManager init: window created");
     // gui.setTarget(window);
 }
 
 void GameManager::start()
 {
+    init();
     running = true;
     if (useThread)
     {

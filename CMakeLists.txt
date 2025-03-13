@@ -15,7 +15,7 @@ project(SFMLProject)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 if (CMAKE_SYSTEM_NAME MATCHES "CYGWIN" OR CMAKE_SYSTEM_NAME MATCHES "MSYS" OR CMAKE_SYSTEM_NAME MATCHES "MINGW")
     set(CMAKE_CXX_EXTENSIONS ON)
@@ -35,6 +35,8 @@ endif()
 
 # Add the cmake directory to the CMAKE_MODULE_PATH
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
 # Include the add_sfml.cmake file
 include(add_sfml)
@@ -71,7 +73,7 @@ target_link_libraries(${PROJECT_NAME} core)
 # include_directories(${SPDLOG_DIR})
 
 # Link SFML libraries
-target_link_libraries(${PROJECT_NAME} sfml-graphics sfml-window sfml-system)
+target_link_libraries(${PROJECT_NAME} sfml-graphics sfml-window sfml-system eigen)
 target_link_libraries(${PROJECT_NAME} spdlog box2d nlohmann_json::nlohmann_json fmt)
 # Link TGUI library
 target_link_libraries(${PROJECT_NAME} tgui)

@@ -18,4 +18,5 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG 2.6.0  # You can specify a specific version/tag
 )
+
 FetchContent_MakeAvailable(SFML)
