@@ -9,6 +9,8 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <memory>
+#include <mutex>
 
 #include <TGUI/TGUI.hpp>
 
@@ -16,6 +18,7 @@
 #include "gameobject/GameObject.hpp"
 #include "GameWorld.hpp"
 #include "Camera.hpp"
+#include "Constants.hpp"
 
 class GameManager
 {
@@ -32,8 +35,6 @@ class GameManager
         void handleInput(sf::Event event);
         void handlePhysics(float localDeltaTime);
         void handleLogic(float localDeltaTime);
-        // void handleNetwork(float localDeltaTime);
-        // void handleDebug(float localDeltaTime);
         void handleCleanup();
 
         void init();
@@ -50,23 +51,19 @@ class GameManager
         sf::Time deltaTime;
 
         std::atomic<bool> running;
-        std::atomic<bool> pacreateWindowused;
         std::atomic<bool> minimized;
         std::atomic<bool> fullscreenMode;
-        // std::atomic<bool> vsync;
-        std::atomic<bool> debug;
         std::atomic<bool> paused;
         std::atomic<bool> pausedByFocus;
+        std::atomic<bool> debug;
         std::mutex pausedByFocusMutex;
-        
 
         std::thread instanceGameThread;
         std::thread instanceCullingThread;
         std::atomic<bool> useThread;
 
-        GameWorld* gameWorld;
-        Camera* camera;
-
+        std::unique_ptr<GameWorld> gameWorld;
+        std::unique_ptr<Camera> camera;
 };
 
 #endif // GAMEMANAGER_HPP

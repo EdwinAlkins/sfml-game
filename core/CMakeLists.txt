@@ -15,9 +15,10 @@ target_link_libraries(gameobject PUBLIC tgui spdlog::spdlog box2d sfml-graphics 
 # ==========================
 # Core
 # ==========================
-add_library(core 
+add_library(core
   GameWorld.cpp GameWorld.hpp
   Camera.cpp Camera.hpp
+  Constants.hpp
   )
 
 target_include_directories(core PUBLIC 

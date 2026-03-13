@@ -3,41 +3,45 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
-#include <complex>
 #include <spdlog/spdlog.h>
-#include <Eigen/Dense>
+#include "Constants.hpp"
 
 class Camera
 {
 private:
-  sf::RenderWindow *window;
+  sf::View view;
   sf::Vector2f center;
-  sf::Vector2f size;
-  float zoom;
+  sf::Vector2f baseSize;  // Taille de base (sans zoom)
+  float zoomFactor;       // Facteur de zoom (1.0 = pas de zoom)
   float rotationAngle;
+
+  void updateView();
+
 public:
   Camera();
+  explicit Camera(sf::Vector2f center, sf::Vector2f size = {SCREEN_WIDTH, SCREEN_HEIGHT});
   ~Camera();
+
   void init();
-//   void update();
-  void render();
-//   void clean();
-  void setWindow(sf::RenderWindow *window);
-  sf::RenderWindow *getWindow();
-  sf::View getView();
+  void apply(sf::RenderWindow& window);
+
   void setCenter(sf::Vector2f center);
   void move(sf::Vector2f offset);
-  sf::Vector2f getCenter();
+  sf::Vector2f getCenter() const;
+
   void setSize(sf::Vector2f size);
-  sf::Vector2f getSize();
+  sf::Vector2f getSize() const;
+
   void setZoom(float zoom);
   void resetZoom();
-  float getZoom();
+  float getZoom() const;
+
   void setRotation(float angle);
   void resetRotation();
-  float getRotation();
-  sf::FloatRect getViewBounds();
-};
+  float getRotation() const;
 
+  sf::FloatRect getViewBounds() const;
+  const sf::View& getView() const;
+};
 
 #endif // CAMERA_HPP

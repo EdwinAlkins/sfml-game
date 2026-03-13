@@ -1,4 +1,3 @@
-
 #ifndef GAMEWORLD_HPP
 #define GAMEWORLD_HPP
 
@@ -6,6 +5,8 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <atomic>
+#include <mutex>
+#include <memory>
 #include <spdlog/spdlog.h>
 #include "gameobject/GameObject.hpp"
 #include "Camera.hpp"
@@ -23,21 +24,21 @@ class GameWorld
         void updatePhysics(float localDeltaTime);
         void render(sf::RenderWindow& window);
 
-        void culling(Camera& camera);
+        void culling(const Camera& camera);
 
-        void addGameObject(GameObjectBase* gameObject);
-        std::vector<GameObjectBase*> getGameObjects();
+        void addGameObject(std::unique_ptr<GameObjectBase> gameObject);
+        const std::vector<std::unique_ptr<GameObjectBase>>& getGameObjects() const;
 
         b2WorldId* getWorldId();
 
     private:
         b2WorldDef def;
         b2WorldId worldId;
-        std::vector<GameObjectBase*> gameObjects;
-        std::vector<GameObjectBase*> visibleGameObjectsA, visibleGameObjectsB;
+        std::vector<std::unique_ptr<GameObjectBase>> gameObjects;
+        std::vector<GameObjectBase*> visibleGameObjects;
 
-        std::mutex cullingMutex;
-        std::atomic<bool> hasNewData;
+        mutable std::mutex gameObjectsMutex;  // Protège gameObjects
+        mutable std::mutex cullingMutex;      // Protège visibleGameObjects
 };
 
 #endif // GAMEWORLD_HPP

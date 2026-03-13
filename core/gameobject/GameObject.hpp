@@ -4,32 +4,32 @@
 #include <box2d/box2d.h>
 #include <SFML/Graphics.hpp>
 #include <spdlog/spdlog.h>
+#include <memory>
 
 
 class GameObjectBase
 {
     public:
-        GameObjectBase(b2WorldId* worldId, sf::Shape &shape) : worldId(worldId), shape(shape) {}
-        virtual ~GameObjectBase() {}
+        explicit GameObjectBase(std::unique_ptr<sf::Shape> shape);
+        virtual ~GameObjectBase() = default;
 
         virtual void updateLogic(float localDeltaTime) = 0;
         virtual void render(sf::RenderWindow& window) = 0;
-        virtual sf::FloatRect getBounds() const { return shape.getGlobalBounds(); }
+        virtual sf::FloatRect getBounds() const;
 
     protected:
-        b2WorldId* worldId;
-        sf::Shape& shape;
+        std::unique_ptr<sf::Shape> shape;
 };
 
 class GameObjectSimple : public GameObjectBase
 {
     public:
-        GameObjectSimple(b2WorldId* worldId, sf::Vector2f position, sf::Shape &shape);
-        ~GameObjectSimple();
+        GameObjectSimple(sf::Vector2f position, std::unique_ptr<sf::Shape> shape);
+        ~GameObjectSimple() override = default;
 
-        void updateLogic(float localDeltaTime);
-        void render(sf::RenderWindow& window);
-    
+        void updateLogic(float localDeltaTime) override;
+        void render(sf::RenderWindow& window) override;
+
     private:
         sf::Vector2f position;
         sf::Vector2f velocity;
@@ -38,16 +38,14 @@ class GameObjectSimple : public GameObjectBase
 class GameObjectSimpleBody : public GameObjectBase
 {
     public:
-        GameObjectSimpleBody(b2WorldId* worldId, sf::Vector2f position, sf::Shape &shape);
-        ~GameObjectSimpleBody();
+        GameObjectSimpleBody(b2WorldId* worldId, sf::Vector2f position, std::unique_ptr<sf::Shape> shape);
+        ~GameObjectSimpleBody() override;
 
-        void updateLogic(float localDeltaTime);
-        // void updatePhysics(float localDeltaTime);
-        void render(sf::RenderWindow& window);
+        void updateLogic(float localDeltaTime) override;
+        void render(sf::RenderWindow& window) override;
 
     protected:
         b2BodyId bodyId;
         b2BodyDef bodyDef;
-        b2WorldId* worldId;
 };
 #endif // GAMEOBJECT_HPP
