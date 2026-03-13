@@ -66,6 +66,14 @@ void GameWorld::addGameObject(std::unique_ptr<GameObjectBase> gameObject)
     gameObjects.push_back(std::move(gameObject));
 }
 
+void GameWorld::removeGameObject(std::unique_ptr<GameObjectBase> gameObject)
+{
+    std::lock_guard<std::mutex> lock(gameObjectsMutex);
+    gameObjects.erase(std::remove_if(gameObjects.begin(), gameObjects.end(), [&gameObject](const auto& obj) {
+        return obj.get() == gameObject.get();
+    }), gameObjects.end());
+}
+
 const std::vector<std::unique_ptr<GameObjectBase>>& GameWorld::getGameObjects() const
 {
     return gameObjects;

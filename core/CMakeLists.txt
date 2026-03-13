@@ -33,7 +33,7 @@ target_link_libraries(core PUBLIC gameobject tgui spdlog::spdlog box2d nlohmann_
 file(GLOB_RECURSE manager_sources "manager/*.cpp")
 file(GLOB_RECURSE manager_headers "manager/*.hpp")
 
-add_library(manager ${manager_sources} ${manager_headers})
+add_library(manager ${manager_sources} ${manager_headers} SceneManager.cpp)
 
 target_include_directories(manager PUBLIC 
   ${CMAKE_CURRENT_SOURCE_DIR}

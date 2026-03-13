@@ -19,6 +19,7 @@
 #include "GameWorld.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
+#include "SceneManager.hpp"
 
 class GameManager
 {
@@ -62,7 +63,7 @@ class GameManager
         std::thread instanceCullingThread;
         std::atomic<bool> useThread;
 
-        std::unique_ptr<GameWorld> gameWorld;
+        std::unique_ptr<SceneManager> sceneManager;
         std::unique_ptr<Camera> camera;
 };
 

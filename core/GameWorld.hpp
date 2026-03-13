@@ -27,6 +27,7 @@ class GameWorld
         void culling(const Camera& camera);
 
         void addGameObject(std::unique_ptr<GameObjectBase> gameObject);
+        void removeGameObject(std::unique_ptr<GameObjectBase> gameObject);
         const std::vector<std::unique_ptr<GameObjectBase>>& getGameObjects() const;
 
         b2WorldId* getWorldId();

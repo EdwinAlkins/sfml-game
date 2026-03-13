@@ -8,7 +8,7 @@ GameManager::GameManager()
     , pausedByFocus(false)
     , debug(DEBUG_DEFAULT)
     , useThread(true)
-    , gameWorld(std::make_unique<GameWorld>())
+    , sceneManager(std::make_unique<SceneManager>())
     , camera(std::make_unique<Camera>())
 {
     if (debug)
@@ -21,30 +21,37 @@ GameManager::GameManager()
     }
     spdlog::info("GameManager constructor");
     
+    sceneManager->addScene("main", std::make_unique<Scene>());
+    sceneManager->setCurrentScene("main");
+    
     int nbObjectsSimple = INITIAL_OBJECTS_COUNT;
     sf::Color color = sf::Color(128, 128, 128);
     
-    for (int i = 0; i < nbObjectsSimple; i++)
+    Scene* currentScene = sceneManager->getCurrentScene();
+    if (currentScene != nullptr)
     {
-        auto shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(rand() % 10, rand() % 10));
-        shape->setFillColor(color);
-        gameWorld->addGameObject(std::make_unique<GameObjectSimple>(
-            sf::Vector2f(rand() % (SCREEN_WIDTH * 2) - SCREEN_WIDTH/2, 
-                        rand() % (SCREEN_HEIGHT * 2) - SCREEN_HEIGHT/2), 
-            std::move(shape)
-        ));
-    }
-    
-    int nbObjectsSimpleBody = INITIAL_PHYSICS_OBJECTS_COUNT;
-    for (int i = 0; i < nbObjectsSimpleBody; i++)
-    {
-        auto shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(5.0f, 5.0f));
-        shape->setFillColor(sf::Color::White);
-        gameWorld->addGameObject(std::make_unique<GameObjectSimpleBody>(
-            gameWorld->getWorldId(),
-            sf::Vector2f(rand() % SCREEN_WIDTH, rand() % SCREEN_HEIGHT), 
-            std::move(shape)
-        ));
+        for (int i = 0; i < nbObjectsSimple; i++)
+        {
+            auto shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(rand() % 10, rand() % 10));
+            shape->setFillColor(color);
+            currentScene->addGameObject(std::make_unique<GameObjectSimple>(
+                sf::Vector2f(rand() % (SCREEN_WIDTH * 2) - SCREEN_WIDTH/2,
+                            rand() % (SCREEN_HEIGHT * 2) - SCREEN_HEIGHT/2),
+                std::move(shape)
+            ));
+        }
+
+        int nbObjectsSimpleBody = INITIAL_PHYSICS_OBJECTS_COUNT;
+        for (int i = 0; i < nbObjectsSimpleBody; i++)
+        {
+            auto shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(5.0f, 5.0f));
+            shape->setFillColor(sf::Color::White);
+            currentScene->addGameObject(std::make_unique<GameObjectSimpleBody>(
+                currentScene->getWorldId(),
+                sf::Vector2f(rand() % SCREEN_WIDTH, rand() % SCREEN_HEIGHT),
+                std::move(shape)
+            ));
+        }
     }
 }
 
@@ -76,7 +83,7 @@ void GameManager::run()
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             spdlog::debug("GameManager run: update time {} ms", duration.count() / 1000.0f);
             start = std::chrono::high_resolution_clock::now();
-            gameWorld->culling(*camera);
+            sceneManager->getCurrentScene()->culling(*camera);
             end = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             spdlog::debug("GameManager run: culling time {} ms", duration.count() / 1000.0f);
@@ -151,7 +158,7 @@ void GameManager::cullingThread()
     {
         if(!pausedByFocus && !paused){
             auto start = std::chrono::high_resolution_clock::now();
-            gameWorld->culling(*camera);
+            sceneManager->getCurrentScene()->culling(*camera);
             auto end = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             spdlog::debug("GameManager cullingThread: culling time {} ms pausedByFocus={}", 
@@ -165,7 +172,7 @@ void GameManager::render()
 {
     window.clear(sf::Color::Black);
     camera->apply(window);  // Appliquer le view de la caméra
-    this->gameWorld->render(window);
+    sceneManager->getCurrentScene()->render(window);
     window.display();
 }
 
@@ -308,7 +315,7 @@ void GameManager::handleInput(sf::Event event)
 void GameManager::handlePhysics(float localDeltaTime)
 {
     auto start = std::chrono::high_resolution_clock::now();
-    this->gameWorld->updatePhysics(localDeltaTime);
+    sceneManager->getCurrentScene()->updatePhysics(localDeltaTime);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     spdlog::debug("GameManager handlePhysics: updatePhysics time {} ms", duration.count() / 1000.0f);
@@ -318,7 +325,7 @@ void GameManager::handlePhysics(float localDeltaTime)
 void GameManager::handleLogic(float localDeltaTime)
 {
     auto start = std::chrono::high_resolution_clock::now();
-    this->gameWorld->updateLogic(localDeltaTime);
+    sceneManager->getCurrentScene()->updateLogic(localDeltaTime);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     spdlog::debug("GameManager handleLogic: updateLogic time {} ms", duration.count() / 1000.0f);
