@@ -18,10 +18,12 @@ target_link_libraries(gameobject PUBLIC tgui spdlog::spdlog box2d sfml-graphics 
 add_library(core
   GameWorld.cpp GameWorld.hpp
   Camera.cpp Camera.hpp
+  SceneManager.cpp SceneManager.hpp
+  scene/MainScene.cpp scene/MainScene.hpp
   Constants.hpp
   )
 
-target_include_directories(core PUBLIC 
+target_include_directories(core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -33,7 +35,7 @@ target_link_libraries(core PUBLIC gameobject tgui spdlog::spdlog box2d nlohmann_
 file(GLOB_RECURSE manager_sources "manager/*.cpp")
 file(GLOB_RECURSE manager_headers "manager/*.hpp")
 
-add_library(manager ${manager_sources} ${manager_headers} SceneManager.cpp)
+add_library(manager ${manager_sources} ${manager_headers})
 
 target_include_directories(manager PUBLIC 
   ${CMAKE_CURRENT_SOURCE_DIR}

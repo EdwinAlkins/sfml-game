@@ -20,6 +20,7 @@ sfml-game/
 │   ├── manager/
 │   │   ├── GameManager      # Boucle principale ✅ Refactorisé
 │   │   └── AssetsManager    # Gestion des ressources
+│   ├── SceneManager         # Gestion des scènes ✅ Nouveau (13 mars 2026)
 │   ├── GameWorld            # Monde physique et logique ✅ Corrigé
 │   ├── Camera               # Système de caméra ✅ Refondu
 │   ├── Constants.hpp        # Constantes (nouveau)
@@ -34,10 +35,12 @@ sfml-game/
 ```
 main.cpp
     └── GameManager (unique_ptr)
-            ├── GameWorld (unique_ptr)
-            │       ├── GameObject (unique_ptr<sf::Shape>)
-            │       └── Camera (unique_ptr)
-            ├── AssetsManager
+            ├── SceneManager (unique_ptr)
+            │       └── Scene* (observation)
+            │               └── GameWorld (héritage)
+            │                       ├── GameObject (unique_ptr)
+            │                       └── Box2D world
+            ├── Camera (unique_ptr)
             └── SFML/Box2D
 ```
 
@@ -46,6 +49,7 @@ main.cpp
 ## ✅ Points Forts
 
 ### 1. **Choix technologiques modernes**
+
 - **C++20** avec concepts (`AssetType` dans AssetsManager)
 - **Box2D v3** (dernière version stable)
 - **SFML 2.6.2** (version stable éprouvée)
@@ -54,10 +58,12 @@ main.cpp
 - **TGUI** pour l'interface utilisateur
 
 ### 2. **AssetsManager bien conçu**
+
 ```cpp
 template<AssetType T>
 std::shared_ptr<T> LoadAsset(std::string_view filename)
 ```
+
 - ✅ Utilisation de **concepts C++20** pour la sécurité des types
 - ✅ **Singleton** avec thread-safe initialization
 - ✅ **std::shared_mutex** pour lectures concurrentes
@@ -65,16 +71,19 @@ std::shared_ptr<T> LoadAsset(std::string_view filename)
 - ✅ Chargement asynchrone avec `std::future`
 
 ### 3. **Système de physique Box2D**
+
 - Intégration correcte de Box2D
 - Séparation claire entre logique et physique
 - Fixed timestep pour la physique (60 Hz)
 
 ### 4. **Logging complet**
+
 - spdlog configuré avec niveaux (debug/info)
 - Timing des différentes phases (render, update, culling)
 - Utile pour le profiling
 
 ### 5. **Gestion des threads**
+
 - Threads séparés pour update et culling
 - Atomic variables pour les états partagés
 - Mutex pour la protection des données
@@ -86,12 +95,14 @@ std::shared_ptr<T> LoadAsset(std::string_view filename)
 ### 1. **Fuites de mémoire - RÉSOLU** ✅
 
 **Avant** :
+
 ```cpp
 sf::Shape* newShape = new sf::RectangleShape(...);  // ❌ Fuite
 this->gameWorld->addGameObject(new GameObjectSimple(..., *newShape));
 ```
 
 **Après** :
+
 ```cpp
 auto shape = std::make_unique<sf::RectangleShape>(...);
 gameWorld->addGameObject(std::make_unique<GameObjectSimple>(pos, std::move(shape)));
@@ -102,6 +113,7 @@ gameWorld->addGameObject(std::make_unique<GameObjectSimple>(pos, std::move(shape
 ### 2. **Design de Camera - RÉSOLU** ✅
 
 **Avant** :
+
 ```cpp
 class Camera {
     sf::RenderWindow* window;  // ❌ Dépendance externe
@@ -110,6 +122,7 @@ class Camera {
 ```
 
 **Après** :
+
 ```cpp
 class Camera {
     sf::View view;              // ✅ Autonome
@@ -122,12 +135,14 @@ class Camera {
 ### 3. **Thread Safety - RÉSOLU** ✅
 
 **Avant** :
+
 ```cpp
 // Mutex unique, protection incomplète
 std::mutex cullingMutex;
 ```
 
 **Après** :
+
 ```cpp
 mutable std::mutex gameObjectsMutex;  // ✅ Protège gameObjects
 mutable std::mutex cullingMutex;      // ✅ Protège visibleGameObjects
@@ -146,6 +161,7 @@ void GameWorld::culling(const Camera& camera)
 ### 4. **Ordre de destruction Box2D - RÉSOLU** ✅
 
 **Avant** :
+
 ```cpp
 GameWorld::~GameWorld() {
     b2DestroyWorld(worldId);  // ❌ Crash ! Corps encore existants
@@ -154,6 +170,7 @@ GameWorld::~GameWorld() {
 ```
 
 **Après** :
+
 ```cpp
 GameWorld::~GameWorld() {
     gameObjects.clear();      // ✅ Détruit les corps d'abord
@@ -164,6 +181,7 @@ GameWorld::~GameWorld() {
 ### 5. **Constantes - RÉSOLU** ✅
 
 **Nouveau fichier** : `Constants.hpp`
+
 ```cpp
 constexpr int SCREEN_WIDTH = 1920;
 constexpr int SCREEN_HEIGHT = 1080;
@@ -174,6 +192,53 @@ constexpr float CAMERA_ZOOM_STEP = 0.05f;
 // ... et plus
 ```
 
+### 6. **Système de scènes - RÉSOLU** ✅ (13 mars 2026)
+
+**Avant** :
+
+```cpp
+class SceneManager {
+    std::unique_ptr<Scene> currentScene;  // ❌ Détruit la scène courante
+    
+    std::unique_ptr<Scene> getCurrentScene() {
+        return std::move(currentScene);  // ❌ Fuite mémoire !
+    }
+    
+    void setCurrentScene(std::string name) {
+        currentScene = std::move(scenes.at(name));  // ❌ Scène perdue du map
+    }
+};
+```
+
+**Après** :
+
+```cpp
+class SceneManager {
+    std::map<std::string, std::unique_ptr<Scene>> scenes;  // ✅ Ownership
+    Scene* currentScene;                                    // ✅ Observation
+    std::string currentSceneName;
+    
+    Scene* getCurrentScene() {
+        return currentScene;  // ✅ Pointeur brut, pas de ownership transfer
+    }
+    
+    void setCurrentScene(std::string name) {
+        currentScene = scenes[name].get();  // ✅ Garde ownership dans le map
+        currentSceneName = name;
+    }
+};
+```
+
+**Corrections clés** :
+
+- ✅ `getCurrentScene()` retourne `Scene`* au lieu de `std::unique_ptr`
+- ✅ `currentScene` est un pointeur d'observation (non-possesseur)
+- ✅ Les scènes restent dans le map après changement
+- ✅ Cycle de vie avec `onLoad()` / `onUnload()`
+- ✅ `SceneManager::update()` appelle `updateLogic()` + `updatePhysics()`
+
+**Fichiers** : `SceneManager.hpp`, `SceneManager.cpp`, `Scene.cpp`
+
 ---
 
 ## 🔧 Problèmes d'Architecture
@@ -181,6 +246,7 @@ constexpr float CAMERA_ZOOM_STEP = 0.05f;
 ### 1. **Couplage fort GameManager ↔ GameWorld** ✅ RÉSOLU
 
 **Avant** :
+
 ```cpp
 class GameManager {
     GameWorld* gameWorld;  // ❌ Raw pointer
@@ -189,6 +255,7 @@ class GameManager {
 ```
 
 **Après** :
+
 ```cpp
 class GameManager {
     std::unique_ptr<GameWorld> gameWorld;  // ✅
@@ -199,6 +266,7 @@ class GameManager {
 ### 2. **GameObjectBase avec référence** ✅ RÉSOLU
 
 **Avant** :
+
 ```cpp
 class GameObjectBase {
 protected:
@@ -207,6 +275,7 @@ protected:
 ```
 
 **Après** :
+
 ```cpp
 class GameObjectBase {
 protected:
@@ -214,32 +283,46 @@ protected:
 };
 ```
 
-### 3. **Pas de système d'états (State Pattern)** ⚠️ EN ATTENTE
+### 3. **Système de scènes** ✅ IMPLÉMENTÉ (13 mars 2026)
+
+**Nouvelle architecture** :
+
+```cpp
+class Scene : public GameWorld {
+    void onLoad();    // Callback d'activation
+    void onUnload();  // Callback de désactivation
+};
+
+class SceneManager {
+    std::map<std::string, std::unique_ptr<Scene>> scenes;  // Ownership
+    Scene* currentScene;                                    // Observation
+    std::string currentSceneName;
+    
+    void addScene(std::string name, std::unique_ptr<Scene>);
+    void setCurrentScene(std::string name);
+    Scene* getCurrentScene();  // Pointeur brut (pas de ownership transfer)
+};
+```
+
+**Corrections appliquées** :
+
+- ✅ `getCurrentScene()` retourne `Scene`* au lieu de `std::unique_ptr<Scene>` (évite le déplacement destructif)
+- ✅ `setCurrentScene()` garde les scènes dans le map (plus de fuite mémoire)
+- ✅ Cycle de vie avec `onLoad()` / `onUnload()`
+- ✅ Thread-safe : pointeur d'observation non-possesseur
+
+### 4. **Pas de système d'états (State Pattern)** ⚠️ EN ATTENTE
 
 Le `GameManager` gère tout dans une seule classe.
 
 **Recommandation** : Implémenter un **GameStateManager**
+
 ```cpp
 class GameState {
     virtual void enter() = 0;
     virtual void update(float dt) = 0;
     virtual void render(sf::RenderWindow&) = 0;
     virtual void exit() = 0;
-};
-```
-
-### 4. **Pas de système de scènes** ⚠️ EN ATTENTE
-
-Tous les objets sont dans un seul `std::vector`.
-
-**Recommandation** :
-```cpp
-class Scene {
-    std::vector<std::unique_ptr<GameObject>> objects;
-};
-
-class SceneManager {
-    std::map<std::string, std::unique_ptr<Scene>> scenes;
 };
 ```
 
@@ -264,6 +347,7 @@ spdlog::debug("GameManager run: handleEvents time {} ms", ...);
 ```
 
 **Solution recommandée** :
+
 ```cpp
 #ifdef DEBUG_PROFILE
     spdlog::debug(...)
@@ -281,6 +365,7 @@ if (!window) {
 ```
 
 **Solution recommandée** :
+
 ```cpp
 if (!window) {
     throw std::runtime_error("...");
@@ -294,6 +379,7 @@ set(CMAKE_C_COMPILER "C:/Program Files/CodeBlocks/MinGW/bin/gcc.exe")
 ```
 
 **Solution recommandée** :
+
 ```cmake
 if(WIN32 AND NOT DEFINED CMAKE_CXX_COMPILER)
     find_program(CMAKE_CXX_COMPILER g++ PATHS "...")
@@ -314,32 +400,38 @@ file(GLOB_RECURSE gameobject_sources "gameobject/*.cpp")
 
 ### ✅ Haute priorité - TERMINÉ
 
-| # | Action | Statut | Impact |
-|---|--------|--------|--------|
-| 1 | Remplacer raw pointers par smart pointers | ✅ Fait | Critique |
-| 2 | Corriger les fuites mémoire dans GameManager | ✅ Fait | Critique |
-| 3 | Nettoyer le code commenté | ✅ Fait | Moyen |
-| 4 | Fixer le thread safety du culling | ✅ Fait | Critique |
-| 5 | Constants au lieu de magic numbers | ✅ Fait | Moyen |
+
+| #   | Action                                       | Statut | Impact   |
+| --- | -------------------------------------------- | ------ | -------- |
+| 1   | Remplacer raw pointers par smart pointers    | ✅ Fait | Critique |
+| 2   | Corriger les fuites mémoire dans GameManager | ✅ Fait | Critique |
+| 3   | Nettoyer le code commenté                    | ✅ Fait | Moyen    |
+| 4   | Fixer le thread safety du culling            | ✅ Fait | Critique |
+| 5   | Constants au lieu de magic numbers           | ✅ Fait | Moyen    |
+
 
 ### 🟡 Moyenne priorité - EN PARTIE
 
-| # | Action | Statut | Impact | Effort |
-|---|--------|--------|--------|--------|
-| 6 | Refactoriser Camera (ownership clair) | ✅ Fait | Élevé | Moyen |
-| 7 | Implémenter GameStateManager | ⏳ À faire | Élevé | Élevé |
-| 8 | Ajouter spatial partitioning (QuadTree) | ⏳ À faire | Élevé | Élevé |
-| 9 | Système de scènes | ⏳ À faire | Élevé | Moyen |
+
+| #   | Action                                  | Statut                | Impact | Effort |
+| --- | --------------------------------------- | --------------------- | ------ | ------ |
+| 6   | Refactoriser Camera (ownership clair)   | ✅ Fait                | Élevé  | Moyen  |
+| 7   | Implémenter GameStateManager            | ⏳ À faire             | Élevé  | Élevé  |
+| 8   | Ajouter spatial partitioning (QuadTree) | ⏳ À faire             | Élevé  | Élevé  |
+| 9   | Système de scènes                       | ✅ Fait (13 mars 2026) | Élevé  | Moyen  |
+
 
 ### 🟢 Basse priorité - AMÉLIORATIONS
 
-| # | Action | Impact | Effort |
-|---|--------|--------|--------|
-| 10 | Profiler avec Tracy | Moyen | Faible |
-| 11 | Tests unitaires (GoogleTest) | Élevé | Élevé |
-| 12 | CI/CD (GitHub Actions) | Moyen | Moyen |
-| 13 | Documentation Doxygen | Faible | Moyen |
-| 14 | Corriger CMake (chemins hardcoded) | Moyen | Faible |
+
+| #   | Action                             | Impact | Effort |
+| --- | ---------------------------------- | ------ | ------ |
+| 10  | Profiler avec Tracy                | Moyen  | Faible |
+| 11  | Tests unitaires (GoogleTest)       | Élevé  | Élevé  |
+| 12  | CI/CD (GitHub Actions)             | Moyen  | Moyen  |
+| 13  | Documentation Doxygen              | Faible | Moyen  |
+| 14  | Corriger CMake (chemins hardcoded) | Moyen  | Faible |
+
 
 ---
 
@@ -347,39 +439,48 @@ file(GLOB_RECURSE gameobject_sources "gameobject/*.cpp")
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Application                           │
-│                         main.cpp                             │
+│                        Application                          │
+│                         main.cpp                            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      GameManager                             │
+│                      GameManager                            │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │  unique_ptr<GameWorld>  unique_ptr<Camera>          │    │
+│  │  unique_ptr<SceneManager>  unique_ptr<Camera>       │    │
 │  └─────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
 ┌───────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│ RenderSystem  │   │  PhysicsSystem  │   │  LogicSystem    │
-│   (SFML)      │   │    (Box2D)      │   │                 │
+│ SceneManager  │   │  PhysicsSystem  │   │  Camera         │
+│ Scene* (obs)  │   │    (Box2D)      │   │  (unique_ptr)   │
 └───────────────┘   └─────────────────┘   └─────────────────┘
-        │                     │                     │
-        └─────────────────────┼─────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Current Scene                            │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  Scene : public GameWorld                            │   │
+│  │  - onLoad() / onUnload() callbacks                   │   │
+│  │  - std::vector<GameObject>                           │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   GameObject Hierarchy                       │
+│                   GameObject Hierarchy                      │
 │  ┌──────────────────┐  ┌──────────────────────────────────┐ │
 │  │ GameObjectSimple │  │ GameObjectSimpleBody (Box2D)     │ │
-│  │ - unique_ptr<Shape> │  │ - unique_ptr<Shape>            │ │
+│  │ - unique_ptr<Shape> │ - unique_ptr<Shape>              │ │
 │  └──────────────────┘  │ - b2BodyId                       │ │
 │                        └──────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     Resources Layer                          │
+│                     Resources Layer                         │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  AssetsManager (Singleton, Concepts C++20)           │   │
 │  │  - Textures, Fonts, Sounds, JSON                     │   │
@@ -501,13 +602,15 @@ public:
 
 ## 📈 Métriques de Performance
 
-| Opération | Temps estimé | Statut |
-|-----------|--------------|--------|
-| handleEvents | ~0.5ms | ✅ OK |
-| update (15k objets) | ~5-10ms | ⚠️ À optimiser |
-| culling (15k objets) | ~3-5ms | 🔴 QuadTree recommandé |
-| render (visible) | ~2-4ms | ⚠️ Batch rendering possible |
-| **Total/frame** | **~15-25ms** | **Cible: <16.67ms** |
+
+| Opération            | Temps estimé | Statut                      |
+| -------------------- | ------------ | --------------------------- |
+| handleEvents         | ~0.5ms       | ✅ OK                        |
+| update (15k objets)  | ~5-10ms      | ⚠️ À optimiser              |
+| culling (15k objets) | ~3-5ms       | 🔴 QuadTree recommandé      |
+| render (visible)     | ~2-4ms       | ⚠️ Batch rendering possible |
+| **Total/frame**      | **~15-25ms** | **Cible: <16.67ms**         |
+
 
 **Objectif** : 60 FPS stable = 16.67ms/frame maximum
 
@@ -516,17 +619,20 @@ public:
 ## 📚 Ressources Recommandées
 
 ### Livres
+
 - **Game Programming Patterns** - Robert Nystrom (gratuit en ligne)
 - **Effective Modern C++** - Scott Meyers
 - **Game Engine Architecture** - Jason Gregory
 
 ### Outils
+
 - **Tracy** - Profiler en temps réel
 - **Valgrind/AddressSanitizer** - Détection fuites mémoire
 - **clang-tidy** - Linting C++ moderne
 - **clang-format** - Formatage automatique
 
 ### Bibliothèques à considérer
+
 - **EnTT** - ECS moderne et performant
 - **glm** - Mathématiques (alternative à Eigen pour les jeux)
 - **stb_image** - Chargement d'images rapide
@@ -536,21 +642,23 @@ public:
 ## ✅ Checklist de Validation - MISE À JOUR
 
 ### Critères CRITIQUES (maintenant validés)
-- [x] Toutes les fuites mémoire sont corrigées
-- [x] Smart pointers partout où approprié
-- [x] Thread safety implémentée (mutex gameObjects + culling)
-- [x] Ordre de destruction Box2D corrigé
-- [x] Code commenté supprimé
-- [x] Constants au lieu de magic numbers
-- [x] Build sans erreurs
+
+- Toutes les fuites mémoire sont corrigées
+- Smart pointers partout où approprié
+- Thread safety implémentée (mutex gameObjects + culling)
+- Ordre de destruction Box2D corrigé
+- Code commenté supprimé
+- Constants au lieu de magic numbers
+- Build sans erreurs
 
 ### Critères RECOMMANDÉS (à valider)
-- [ ] Tests unitaires > 70% de coverage
-- [ ] Profiling montre < 16ms/frame
-- [ ] Documentation à jour
-- [ ] CI/CD fonctionnelle
-- [ ] Build sans warnings (-Wall -Wextra -Wpedantic)
-- [ ] Gestion des erreurs robuste (exceptions)
+
+- Tests unitaires > 70% de coverage
+- Profiling montre < 16ms/frame
+- Documentation à jour
+- CI/CD fonctionnelle
+- Build sans warnings (-Wall -Wextra -Wpedantic)
+- Gestion des erreurs robuste (exceptions)
 
 ---
 
@@ -559,20 +667,30 @@ public:
 ### ✅ Progrès Significatifs
 
 **Corrections appliquées (13 mars 2026)** :
+
 1. **Gestion mémoire** - Smart pointers implémentés ✅
 2. **Thread safety** - Mutex multiples pour protection complète ✅
 3. **Caméra** - Architecture autonome, zoom persistant ✅
 4. **Box2D** - Ordre de destruction corrigé (plus de crash) ✅
 5. **Constantes** - Fichier dédié `Constants.hpp` ✅
+6. **Système de scènes** - Architecture ownership/observation ✅
+
+**Détail des corrections de scène** :
+
+- `getCurrentScene()` ne détruit plus la scène courante
+- `setCurrentScene()` garde les scènes en mémoire
+- Cycle de vie avec `onLoad()` / `onUnload()`
+- `SceneManager::update()` appelle logique + physique
 
 ### ⚠️ Travaux Restants
 
 **Moyenne priorité** :
-- Système de scènes (organisation)
-- GameStateManager (Menu, Play, Pause)
+
+- GameStateManager (Menu, Play, Pause, etc.)
 - Spatial partitioning (QuadTree pour performance)
 
 **Basse priorité** :
+
 - Tests unitaires
 - CI/CD
 - Profiler avec Tracy
@@ -586,10 +704,12 @@ public:
 - ✅ Plus de crash Box2D
 - ✅ Caméra fonctionnelle et robuste
 - ✅ Thread safety correcte
+- ✅ Système de scènes fonctionnel
 
 **Prochaines étapes recommandées** :
-1. Ajouter un **QuadTree** pour le culling (performance)
-2. Implémenter un **GameStateManager** (architecture)
+
+1. Implémenter un **GameStateManager** (Menu, Play, Pause)
+2. Ajouter un **QuadTree** pour le culling (performance)
 3. Ajouter des **tests unitaires** (qualité)
 
 Le projet a une **bonne base technique** et peut maintenant évoluer sereinement.
@@ -597,5 +717,5 @@ Le projet a une **bonne base technique** et peut maintenant évoluer sereinement
 ---
 
 *Document généré le 13 mars 2026*
-*Dernière mise à jour : Corrections critiques appliquées*
-*Voir aussi : [`CORRECTIFS_CAMERA.md`](CORRECTIFS_CAMERA.md)*
+*Dernière mise à jour : Système de scènes implémenté*
+*Voir aussi : `[CORRECTIFS_CAMERA.md](CORRECTIFS_CAMERA.md)`*
