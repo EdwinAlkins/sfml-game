@@ -125,19 +125,19 @@ GameWorld::~GameWorld()
     this->gameObjects.clear();
     spdlog::info("GameWorld destructor: Cleared game objects");
 
-    for (GameObjectBase* gameObject : this->visibleGameObjectsA)
-    {
-        delete gameObject;
-    }
-    spdlog::info("GameWorld destructor: Deleted {} visible game objects", this->visibleGameObjectsA.size());
-    this->visibleGameObjectsA.clear();
+    // for (GameObjectBase* gameObject : this->visibleGameObjectsA)
+    // {
+    //     delete gameObject;
+    // }
+    // spdlog::info("GameWorld destructor: Deleted {} visible game objects", this->visibleGameObjectsA.size());
+    // this->visibleGameObjectsA.clear();
 
-    for (GameObjectBase* gameObject : this->visibleGameObjectsB)
-    {
-        delete gameObject;
-    }
-    spdlog::info("GameWorld destructor: Deleted {} visible game objects", this->visibleGameObjectsB.size());
-    this->visibleGameObjectsB.clear();
+    // for (GameObjectBase* gameObject : this->visibleGameObjectsB)
+    // {
+    //     delete gameObject;
+    // }
+    // spdlog::info("GameWorld destructor: Deleted {} visible game objects", this->visibleGameObjectsB.size());
+    // this->visibleGameObjectsB.clear();
 }
 
 void GameWorld::updateLogic(float localDeltaTime)

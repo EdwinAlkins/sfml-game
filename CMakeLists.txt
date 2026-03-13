@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.5)
 
 # Set compilers before project() call
 if(WIN32)
@@ -46,6 +46,7 @@ include(add_box2d)
 include(add_json)
 include(add_tgui)
 include(add_eigen)
+include(add_cppfs)
 
 # Add executable
 add_executable(${PROJECT_NAME} main.cpp)
@@ -67,14 +68,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     # ${CMAKE_CURRENT_SOURCE_DIR}/utils
 )
 
-target_link_libraries(${PROJECT_NAME} core)
+target_link_libraries(${PROJECT_NAME} manager core gameobject)
 
 # set(SPDLOG_DIR ${CMAKE_SOURCE_DIR})
 # include_directories(${SPDLOG_DIR})
 
 # Link SFML libraries
-target_link_libraries(${PROJECT_NAME} sfml-graphics sfml-window sfml-system eigen)
-target_link_libraries(${PROJECT_NAME} spdlog box2d nlohmann_json::nlohmann_json fmt)
+target_link_libraries(${PROJECT_NAME} sfml-graphics sfml-window sfml-system)
+target_link_libraries(${PROJECT_NAME} spdlog box2d nlohmann_json::nlohmann_json fmt eigen cppfs)
 # Link TGUI library
 target_link_libraries(${PROJECT_NAME} tgui)
 

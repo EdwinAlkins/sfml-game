@@ -16,7 +16,8 @@ set(SFML_BUILD_SYSTEM ON CACHE BOOL "" FORCE)
 FetchContent_Declare(
     SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.0  # You can specify a specific version/tag
+    GIT_TAG 2.6.2  # You can specify a specific version/tag
+    # GIT_TAG 3.0.0
 )
 
 FetchContent_MakeAvailable(SFML)

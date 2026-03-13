@@ -14,15 +14,18 @@ GameManager::GameManager()
 
     int height = 1080;
     int width = 1920;
-    int nbObjectsSimple = 50000;
+    int nbObjectsSimple = 10000;
+    // colore grey
+    sf::Color color = sf::Color(128, 128, 128);
     for (int i = 0; i < nbObjectsSimple; i++)
     {
-        sf::Shape* newShape = new sf::RectangleShape(sf::Vector2f(2.0f, 2.0f));
-        newShape->setFillColor(sf::Color::Blue);
+        // sf::Color color = sf::Color(rand() % 256, rand() % 256, rand() % 256);
+        sf::Shape* newShape = new sf::RectangleShape(sf::Vector2f(rand() % 10, rand() % 10));
+        newShape->setFillColor(color);
         // this->gameWorld->addGameObject(new GameObjectSimpleBody(this->gameWorld->getWorldId(), sf::Vector2f(rand() % width, rand() % height), *newShape));
         this->gameWorld->addGameObject(new GameObjectSimple(this->gameWorld->getWorldId(), sf::Vector2f(rand() % (width * 2) - width/2, rand() % (height * 2) - height/2), *newShape));
     }
-    int nbObjectsSimpleBody = 10000;
+    int nbObjectsSimpleBody = 5000;
     for (int i = 0; i < nbObjectsSimpleBody; i++)
     {
         sf::Shape* newShape = new sf::RectangleShape(sf::Vector2f(5.0f, 5.0f));
@@ -140,7 +143,7 @@ void GameManager::cullingThread()
 {
     while (running && useThread)
     {
-        if(!pausedByFocus){
+        if(!pausedByFocus && !paused){
             auto start = std::chrono::high_resolution_clock::now();
             gameWorld->culling(*camera);
             auto end = std::chrono::high_resolution_clock::now();
@@ -322,9 +325,9 @@ void GameManager::init()
 {
     sf::ContextSettings settings;
     settings.antialiasingLevel = 4; // 8 niveaux d'anti-aliasing
-    // settings.sRgbCapable = true; // Activer le rendu sRGB
-    // settings.majorVersion = 4; // Version majeure de l'OpenGL
-    // settings.minorVersion = 6; // Version mineure de l'OpenGL
+    settings.sRgbCapable = true; // Activer le rendu sRGB
+    settings.majorVersion = 3; // Version majeure de l'OpenGL
+    settings.minorVersion = 6; // Version mineure de l'OpenGL
     // settings.attributeFlags = sf::ContextSettings::Core; // Utiliser le profil core
     settings.depthBits = 24; // Profondeur de 24 bits
     settings.stencilBits = 8; // 8 bits de stencil
@@ -351,6 +354,7 @@ void GameManager::init()
     camera->init();
 
     spdlog::info("GameManager init: window created");
+    // TGUI::Gui gui(window);
     // gui.setTarget(window);
 }
 

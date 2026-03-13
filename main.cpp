@@ -3,7 +3,7 @@
 #include <box2d/box2d.h>
 #include <nlohmann/json.hpp>
 
-#include "core/GameManager.hpp"
+#include "core/manager/GameManager.hpp"
 
 int main()
 {

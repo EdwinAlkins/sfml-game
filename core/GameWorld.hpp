@@ -7,7 +7,7 @@
 #include <vector>
 #include <atomic>
 #include <spdlog/spdlog.h>
-#include "GameObject.hpp"
+#include "gameobject/GameObject.hpp"
 #include "Camera.hpp"
 
 

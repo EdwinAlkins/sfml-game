@@ -55,6 +55,23 @@ This project uses CMake's FetchContent module to automatically download and buil
 
 ### Linux
 
+0. Install deps:
+
+   ```
+   sudo apt install libxi-dev
+   sudo apt-get install freeglut3-dev
+   sudo apt install libudev-dev
+   sudo apt-get install libxrandr-dev
+   sudo apt-get install libxcursor-dev
+   sudo apt-get install libfreetype-dev
+   sudo apt-get install libfreetype6-dev
+   sudo apt-get install libasound2-dev libx11-dev
+   sudo apt-get install libxext-dev
+   ## 
+   sudo apt install clang-format clang-tidy
+
+   ```
+
 1. Create a build directory and navigate to it:
    ```
    mkdir build

@@ -10,8 +10,10 @@
 #include <atomic>
 #include <chrono>
 
+#include <TGUI/TGUI.hpp>
+
 #include "SFMLFormatters.hpp"
-#include "GameObject.hpp"
+#include "gameobject/GameObject.hpp"
 #include "GameWorld.hpp"
 #include "Camera.hpp"
 

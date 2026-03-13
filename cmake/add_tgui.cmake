@@ -13,6 +13,7 @@ set(TGUI_BACKEND "SFML_GRAPHICS" CACHE STRING "Backend to use with TGUI")
 # Enable debugging to see what's happening
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 message(STATUS "Setting TGUI_BACKEND to: ${TGUI_BACKEND}")
+set(TGUI_BUILD_GUI_BUILDER ON)
 
 FetchContent_MakeAvailable(tgui)
 
